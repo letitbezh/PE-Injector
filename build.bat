@@ -1,6 +1,6 @@
 @echo off
 
-set NAME=getMsgBox
+set NAME=Jambi
 
 if exist %NAME%.obj del %NAME%.obj
 if exist %NAME%.exe del %NAME%.exe
