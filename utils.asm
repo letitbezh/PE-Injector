@@ -1,3 +1,8 @@
+
+ifndef	UTILS_ASM_
+UTILS_ASM_ MACRO
+ENDM
+
 ; int   my_strcmp(char *, char *)
 ; (edi, esi) -> eax
 ; Compares 2 strings strcmp-style.
@@ -91,3 +96,5 @@ lbl_end:
 
     ret
 my_memset ENDP
+
+endif ; UTILS_ASM_
