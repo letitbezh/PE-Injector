@@ -97,4 +97,22 @@ lbl_end:
     ret
 my_memset ENDP
 
+; int	ceil_align(int nbr, int alignment)
+; args on stack (_stdcall) -> eax
+; Ceils nbr to a multiple of alignment.
+ceil_align PROC NEAR USES edi esi nbr:DWORD, alignment:DWORD
+
+	mov		edi, nbr
+	mov		esi, alignment
+	xor		eax, eax
+ceil_align_loop:
+	cmp		eax, edi
+	jae		ceil_align_loop_end			; Jump if above or equal
+	add		eax, esi
+	jmp		ceil_align_loop
+ceil_align_loop_end:
+
+	ret
+ceil_align ENDP
+
 endif ; UTILS_ASM_
