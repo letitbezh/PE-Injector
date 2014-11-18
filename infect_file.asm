@@ -199,7 +199,7 @@ LOCAL	oldentrypoint:DWORD
 	popad
 
 	mov		eax, 1
-	jmp		end_infect
+	jmp		end_infect					; return 0 or 1 depending on error.
 infect_err:
 	mov		eax, 0
 end_infect:

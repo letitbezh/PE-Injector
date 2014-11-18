@@ -3,8 +3,8 @@ TODO:
 
  - search all exe files in current dir
  - calculate size of new file more properly
- - calculate new sizeofheaders
+; - calculate new sizeofheaders
  - calculate new sizeofimage
- - update BaseOfCode
- - set checksum to 0
+ ; - update BaseOfCode
+ ; - set checksum to 0
  - rm debug
