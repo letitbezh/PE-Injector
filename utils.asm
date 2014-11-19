@@ -13,18 +13,18 @@ my_strcmp PROC NEAR
     push    ebx                         ; Saving registers that we will use
 
 loop_beg:
-    cmp     byte ptr [edi], 0
+    cmp     BYTE ptr [edi], 0
     jz      loop_end                    ; if (str1[i] == '\0') then exit loop
-    mov     bl, byte ptr [edi]
-    cmp     byte ptr [esi], bl
+    mov     bl, BYTE ptr [edi]
+    cmp     BYTE ptr [esi], bl
     jnz     loop_end                    ; if (str1[i] != str2[i]) then exit loop
     inc     edi
     inc     esi
     jmp     loop_beg
 
 loop_end:
-    movzx   eax, byte ptr [edi]
-    movzx   ebx, byte ptr [esi]
+    movzx   eax, BYTE ptr [edi]
+    movzx   ebx, BYTE ptr [esi]
     sub     eax, ebx
 
     pop     ebx
@@ -33,7 +33,6 @@ loop_end:
 
     ret
 my_strcmp ENDP
-
 
 ; void* memcpy(void *dest, void *src, size_t n)
 ; (edi, esi, edx) -> eax	
@@ -68,46 +67,6 @@ lbl_result:
 
     ret
 my_memcpy ENDP
-
-; void *memmove(void *dest, const void *src, size_t n)
-; (edi, esi, edx) -> eax
-my_memmove PROC NEAR
-
-	pushad
-
-	push	eax
-	push	ebx
-	sub		esp, edx				; temporary buffer allocated in the stack, with size n.
-	mov		eax, esp				; eax = tmp. to recover the stack register, simply sub edx.
-	xor		ebx, ebx
-	xor		ecx, ecx				; i = counter
-loop1_beg:
-	cmp		ecx, edx
-	jz		loop1_end				; if i = n then end loop
-	mov		bl, BYTE ptr [esi + ecx]
-	mov		BYTE ptr [eax + ecx], bl	; tmp[i] = src[i] (copies src into tmp buffer)
-	inc		ecx
-	jmp		loop1_beg
-loop1_end:
-	xor		ecx, ecx
-loop2_beg:
-	cmp		ecx, edx
-	jz		loop2_end				; if ecx = n then end loop
-	mov		bl, BYTE ptr [eax + ecx]
-	mov		BYTE ptr [edi + ecx], bl	; dest[i] = tmp[i] (copies tmp buffer into dest)
-	inc		ecx
-	jmp		loop2_beg
-loop2_end:
-	add		esp, edx
-	pop		ebx
-	pop		eax
-
-	popad
-
-	mov		eax, edi
-
-	ret
-my_memmove ENDP
 
 ; void *memset(void *s, int c, size_t n)
 ; (edi, esi, edx) -> eax

