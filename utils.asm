@@ -69,6 +69,45 @@ lbl_result:
     ret
 my_memcpy ENDP
 
+; void *memmove(void *dest, const void *src, size_t n)
+; (edi, esi, edx) -> eax
+my_memmove PROC NEAR
+
+	pushad
+
+	push	eax
+	push	ebx
+	sub		esp, edx				; temporary buffer allocated in the stack, with size n.
+	mov		eax, esp				; eax = tmp. to recover the stack register, simply sub edx.
+	xor		ebx, ebx
+	xor		ecx, ecx				; i = counter
+loop1_beg:
+	cmp		ecx, edx
+	jz		loop1_end				; if i = n then end loop
+	mov		bl, BYTE ptr [esi + ecx]
+	mov		BYTE ptr [eax + ecx], bl	; tmp[i] = src[i] (copies src into tmp buffer)
+	inc		ecx
+	jmp		loop1_beg
+loop1_end:
+	xor		ecx, ecx
+loop2_beg:
+	cmp		ecx, edx
+	jz		loop2_end				; if ecx = n then end loop
+	mov		bl, BYTE ptr [eax + ecx]
+	mov		BYTE ptr [edi + ecx], bl	; dest[i] = tmp[i] (copies tmp buffer into dest)
+	inc		ecx
+	jmp		loop2_beg
+loop2_end:
+	add		esp, edx
+	pop		ebx
+	pop		eax
+
+	popad
+
+	mov		eax, edi
+
+	ret
+my_memmove ENDP
 
 ; void *memset(void *s, int c, size_t n)
 ; (edi, esi, edx) -> eax

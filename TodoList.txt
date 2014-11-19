@@ -1,9 +1,5 @@
 
 TODO:
 
- - calculate size of new file more properly
-; - calculate new sizeofheaders
- - calculate new sizeofimage
-; - update BaseOfCode
-; - set checksum to 0
+ - Fix jump to old entry point when ImageBase is not respected by the loader.
  - rm debug

@@ -25,6 +25,7 @@ LOCAL	filealignment:DWORD
 LOCAL	sectionalignment:DWORD
 LOCAL	pointertorawdata:DWORD
 LOCAL	oldentrypoint:DWORD
+LOCAL	ptr_sectionhdrtable:DWORD
 
 	pushad
 
@@ -80,6 +81,7 @@ LOCAL	oldentrypoint:DWORD
 	pop		esi							; esi -> IMAGE_NT_HEADERS
 
 	add		esi, SIZEOF IMAGE_NT_HEADERS; esi -> IMAGE_SECTION_HEADER[0]
+	mov		ptr_sectionhdrtable, esi
 
 	mov		ecx, ptr_numberofsections
 	xor		eax, eax
@@ -98,8 +100,47 @@ LOCAL	oldentrypoint:DWORD
 	mov		lastsec_sizeofrawdata, ecx	; Got IMAGE_SECTION_HEADER[last].SizeOfRawData	
 	mov		ecx, [esi + 014h]
 	mov		lastsec_ptrtorawdata, ecx	; Got IMAGE_SECTION_HEADER[last].PointerToRawData
+	
+; --------------------------------------> If the first section starts before 0x400 in the file, we won't have enough space for our extra header.
+; --------------------------------------> That's why if it is the case we need to move all the sections in the file by filealignment bytes.
 
+	mov		ecx, ptr_sizeofheaders
+	mov		ecx, [ecx]
+	cmp		ecx, 0400h
+;	jae		dont_move_sections			; If header is already big enough we don't need to move everything.
+
+	push	esi							; esi -> IMAGE_SECTION_HEADER[last]
+
+	mov		esi, ptr_sectionhdrtable	; esi -> IMAGE_SECTION_HEADER[0]
+	mov		esi, [esi + 014h]			; esi = IMAGE_SECTION_HEADER[0].PointerToRawData
+	add		esi, fileptr				; esi is now destination pointer for memmove()
+	mov		edi, filealignment
+	add		edi, esi					; destination is just 1 filealignment further.
+	mov		edx, lastsec_ptrtorawdata
+	add		edx, lastsec_sizeofrawdata
+	call	my_memmove					; Moved all the sections 1 filealignment further in the file.
+
+; --------------------------------------> Update all section headers for new sections offsets in file, ie add filealignment to their offset.
+
+	xor		edx, edx
+	mov		edi, ptr_numberofsections
+	xor		eax, eax
+	mov		ax, WORD ptr [edi]			; eax = number of sections ( = *ptr_numberofsections)
+	mov		edi, eax					; edi = numberofsections
+	mov		esi, ptr_sectionhdrtable	; esi -> IMAGE_SECTION_HEADER[0]
+update_sec_hdrs:
+	mov		ecx, [esi + 014h]			; esi -> IMAGE_SECTION_HEADER[edx].PointerToRawData
+	add		ecx, filealignment			;
+	mov		[esi + 014h], ecx			; IMAGE_SECTION_HEADER[edx].PointerToRawData += filealignment
+	inc		edx
+	add		esi, SIZEOF IMAGE_SECTION_HEADER
+	cmp		edx, edi					; while edx < numberofsections
+	jne		update_sec_hdrs
+
+dont_move_sections:
 ; --------------------------------------> Now we can move on to write our new section header.
+
+	pop		esi							; esi -> IMAGE_SECTION_HEADER[last]
 
 	add		esi, SIZEOF IMAGE_SECTION_HEADER	; esi -> IMAGE_SECTION_HEADER[last + 1]
 
@@ -136,6 +177,7 @@ LOCAL	oldentrypoint:DWORD
 	add		esi, 04h					; esi -> IMAGE_SECTION_HEADER[last + 1].PointerToRawData
 	mov		ecx, lastsec_ptrtorawdata
 	add		ecx, lastsec_sizeofrawdata
+	add		ecx, 0200h					; For when we move the sections (see arround update_sec_hdrs: label)
 	mov		[esi], ecx					; Wrote PointerToRawData
 	mov		pointertorawdata, ecx
 
