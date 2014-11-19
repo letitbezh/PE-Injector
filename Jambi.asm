@@ -27,9 +27,6 @@ begin_copy:
 
 	file_regex				db "*.exe", 0
 
-	; dbg_sysfail				db "A system function failed", 0	; DEBUG
-	; dbg_infectfail			db "Problem with an exe file", 0	; DEBUG
-
 ; Function names
 	closehandle_name		db "CloseHandle", 0
 	createfile_name			db "CreateFileA", 0

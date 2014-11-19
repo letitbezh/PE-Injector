@@ -1,6 +1,0 @@
-
-TODO:
-
- - Fix jump to old entry point when ImageBase is not respected by the loader.
- - rm debug
- - free()
