@@ -5,10 +5,13 @@ ENDM
 
     and     esi, 0FFFF0000h             ; mask address inside k32.dll to get page aligned like sections.
 
+    cmp     word ptr [esi], "ZM"        ; Looking for the "MZ" signature of a DOS header. "ZM" for endianess.
+    je		stop_search_k32
 search_k32:
-    sub     esi, 1000h                  ; Going back and back, keeping the page/section alignment.
+    sub     esi, 10000h                 ; Going back and back, keeping the page/section alignment.
     cmp     word ptr [esi], "ZM"        ; Looking for the "MZ" signature of a DOS header. "ZM" for endianess.
     jne     search_k32
+stop_search_k32:
 
     mov     imageBase, esi              ; imageBase = Real BaseAdress (for sure).
 
