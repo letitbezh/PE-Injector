@@ -1,6 +1,6 @@
 @echo off
 
-set NAME=Jambi
+set NAME=founderzhang
 
 if exist %NAME%.obj del %NAME%.obj
 if exist %NAME%.exe del %NAME%.exe
